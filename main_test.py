@@ -10,17 +10,38 @@
 # Sources: http://kidscancode.org/blog/2016/08/pygame_1-1_getting-started/
 # Sources: 
 
+'''
+Game structure:
+GOALS; RULES; FEEDBACK; FREEDOM
+My goal is:
+
+Slime mob (need to create new mob class that jumps)
+
+A mob that bounces along the floor...
+Player gets bounced away when colliding 
+
+Feature Creep
+
+Reach goal:
+use images and animated sprites...
+create rotating that rotates only when it goes in a direction
+
+'''
+
 # import libs
 import pygame as pg
 import os
 # import settings 
-from settings import *
-from sprites import *
+from settings_test import *
+from sprites_test import *
+from math import *
+from math import ceil
+from os import path
 # from pg.sprite import Sprite
 
 # set up assets folders
 game_folder = os.path.dirname(__file__)
-img_folder = os.path.join(game_folder, "img")
+img_folder = os.path.join(game_folder, "images")
 
 # create game class in order to pass properties to the sprites file
 
@@ -33,13 +54,23 @@ class Game:
         pg.display.set_caption("my game")
         self.clock = pg.time.Clock()
         self.running = True
+        self.score = 0
+        self.win = False
         print(self.screen)
+    
+    # to add images sounds etc copy below...and add this to the new method below...
+    def load_data(self):
+        self.player_img = pg.image.load(path.join(img_folder, "bellar_man_single_frm.png")).convert()
+
     def new(self):
         # starting a new game
         self.score = 0
+        # added to load data
+        self.load_data()
         self.all_sprites = pg.sprite.Group()
         self.platforms = pg.sprite.Group()
         self.enemies = pg.sprite.Group()
+        self.attached_items = pg.sprite.Group()
         self.player = Player(self)
         self.plat1 = Platform(WIDTH, 50, 0, HEIGHT-50, (150,150,150), "normal")
         # self.plat1 = Platform(WIDTH, 50, 0, HEIGHT-50, (150,150,150), "normal")
@@ -53,7 +84,7 @@ class Game:
             self.all_sprites.add(p)
             self.platforms.add(p)
         for i in range(0,10):
-            m = Mob(20,20,(0,255,0))
+            m = Mob(self, 20,20,(0,255,0))
             self.all_sprites.add(m)
             self.enemies.add(m)
         self.run()
@@ -77,27 +108,47 @@ class Game:
     def update(self):
         self.all_sprites.update()
         
-        # if the player is falling
+        mhits = pg.sprite.spritecollide(self.player, self.enemies, False)
+        if mhits:
+            mhits[0].attached_now = True
+            self.enemies.remove(mhits[0])
+            self.attached_items.add(mhits[0])
+            self.score += 1
+            print(self.score)
+        # if mhits:
+        #     if self.player.vel.x < 0:
+        #         self.player.pos.x += 5
+        #     if self.player.vel.x > 0:
+        #         self.player.pos.x -= 5
+        #     if self.player.vel.y > 0:
+        #         self.player.pos.y -= 5
+            
         if self.player.vel.y > 0:
             hits = pg.sprite.spritecollide(self.player, self.platforms, False)
             if hits:
-                self.player.standing = True
+                print(len(self.enemies))
+                if abs(self.player.vel.x) > abs(self.player.vel.y):
+                    if self.player.vel.x > 0:
+                        print("Im going faster on the x and coming from the left...")
                 if hits[0].variant == "disappearing":
                     hits[0].kill()
                 elif hits[0].variant == "bouncey":
                     self.player.pos.y = hits[0].rect.top
                     self.player.vel.y = -PLAYER_JUMP
+                elif hits[0].variant == "winner" and len(self.enemies) == 0:
+                    self.win = True
                 else:
                     self.player.pos.y = hits[0].rect.top
+                    hits[0].health -= 0.01
                     self.player.vel.y = 0
-            else:
-                self.player.standing = False
-
     def draw(self):
         self.screen.fill(BLUE)
         self.all_sprites.draw(self.screen)
-        if self.player.standing:
-            self.draw_text("I hit a plat!", 24, WHITE, WIDTH/2, HEIGHT/2)
+        if not self.win:
+            self.draw_text(str(self.player.rot), 24, WHITE, WIDTH/2, HEIGHT/2)
+        else:
+            self.draw_text("You win!", 24, WHITE, WIDTH/2, HEIGHT/2)
+
         # is this a method or a function?
         pg.display.flip()
     def draw_text(self, text, size, color, x, y):
